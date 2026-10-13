@@ -1,0 +1,192 @@
+
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sonargaon Food</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f4f7f4;color:#17231b}
+header{background:#16794b;color:white;padding:22px 16px;border-radius:0 0 22px 22px}
+header h1{margin:0;font-size:25px}
+header p{margin:8px 0 0}
+main{max-width:850px;margin:auto;padding:16px 12px 35px}
+h2{font-size:20px}
+.search,input{font:inherit}
+.search{width:100%;padding:12px;border:0;border-radius:10px;margin-top:16px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.card{background:white;border-radius:14px;padding:14px;box-shadow:0 2px 7px #0000000d}
+.foodpic{font-size:42px;text-align:center;background:#fff0d8;padding:12px;border-radius:10px}
+.price{font-weight:bold;color:#16794b;margin:9px 0}
+button{border:0;border-radius:9px;padding:10px 12px;cursor:pointer;font-weight:bold}
+.add,.order{background:#16794b;color:white}
+.add{width:100%}
+.cart{background:white;padding:15px;border-radius:14px;margin-top:20px}
+.field{display:block;width:100%;padding:12px;border:1px solid #ddd;border-radius:9px;margin:8px 0 12px}
+.item{display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid #eee}
+.total{font-size:19px;font-weight:bold;margin:16px 0}
+.order{width:100%;padding:14px;font-size:16px}
+.small{font-size:12px;color:#66736b;line-height:1.6}
+@media(max-width:400px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🍲 Sonargaon Food</h1>
+  <p>📍 মোগড়াপাড়া চৌরাস্তা, সোনারগাঁও</p>
+  <input class="search" id="search" placeholder="খাবার খুঁজুন..." oninput="showFoods()">
+</header>
+
+<main>
+  <h2>🍽️ খাবারের মেনু</h2>
+  <div class="grid" id="foods"></div>
+
+  <section class="cart">
+    <h2>🛒 আপনার কার্ট</h2>
+    <div id="cartItems">এখনো কোনো খাবার যোগ করেননি।</div>
+    <div class="total">মোট: <span id="total">৳0</span></div>
+
+    <h2>📦 ডেলিভারির তথ্য</h2>
+    <label>আপনার নাম
+      <input class="field" id="cname" placeholder="আপনার নাম">
+    </label>
+    <label>মোবাইল নম্বর
+      <input class="field" id="phone" type="tel" placeholder="01XXXXXXXXX">
+    </label>
+    <label>সম্পূর্ণ ঠিকানা
+      <input class="field" id="address" placeholder="বাসা, রাস্তা ও এলাকা">
+    </label>
+    <label>অতিরিক্ত নোট (ঐচ্ছিক)
+      <input class="field" id="note" placeholder="যেমন: কম ঝাল">
+    </label>
+
+    <button class="order" onclick="sendOrder()">WhatsApp-এ অর্ডার পাঠান</button>
+    <p class="small">দামগুলো নমুনা। অর্ডার WhatsApp-এ খুলবে; পাঠানোর আগে সেখানে Send চাপতে হবে।</p>
+    <p id="status" role="status"></p>
+  </section>
+</main>
+
+<script>
+const businessPhone = "8801816871366";
+
+const menu = [
+  {id:1,name:"চিকেন বিরিয়ানি",price:180,emoji:"🍛"},
+  {id:2,name:"কাচ্চি বিরিয়ানি",price:250,emoji:"🍲"},
+  {id:3,name:"মাটন বিরিয়ানি",price:320,emoji:"🥘"},
+  {id:4,name:"ভাত ও চিকেন",price:160,emoji:"🍚"},
+  {id:5,name:"চিকেন বার্গার",price:150,emoji:"🍔"},
+  {id:6,name:"চিকেন ফ্রাই",price:190,emoji:"🍗"},
+  {id:7,name:"চিকেন চাউমিন",price:180,emoji:"🍜"},
+  {id:8,name:"ফ্রাইড রাইস",price:220,emoji:"🍱"}
+];
+
+let cart = {};
+
+function money(n){
+  return "৳" + n.toLocaleString("en-US");
+}
+
+function showFoods(){
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  const filtered = menu.filter(f => f.name.toLowerCase().includes(q));
+
+  document.getElementById("foods").innerHTML = filtered.map(f => `
+    <article class="card">
+      <div class="foodpic">${f.emoji}</div>
+      <h3>${f.name}</h3>
+      <div class="price">${money(f.price)}</div>
+      <button class="add" onclick="addFood(${f.id})">+ কার্টে যোগ করুন</button>
+    </article>
+  `).join("");
+}
+
+function addFood(id){
+  cart[id] = (cart[id] || 0) + 1;
+  showCart();
+}
+
+function changeQty(id,change){
+  cart[id] = (cart[id] || 0) + change;
+  if(cart[id] <= 0) delete cart[id];
+  showCart();
+}
+
+function showCart(){
+  const entries = Object.entries(cart);
+  const area = document.getElementById("cartItems");
+
+  if(entries.length === 0){
+    area.textContent = "এখনো কোনো খাবার যোগ করেননি।";
+  }else{
+    area.innerHTML = entries.map(([id,qty]) => {
+      const f = menu.find(x => x.id === Number(id));
+      return `<div class="item">
+        <span>${f.name}<br>${money(f.price)} × ${qty}</span>
+        <span>
+          <button onclick="changeQty(${id},-1)">−</button>
+          ${qty}
+          <button onclick="changeQty(${id},1)">+</button>
+        </span>
+      </div>`;
+    }).join("");
+  }
+
+  const total = entries.reduce((sum,[id,qty]) => {
+    return sum + menu.find(f => f.id === Number(id)).price * qty;
+  },0);
+
+  document.getElementById("total").textContent = money(total);
+}
+
+function sendOrder(){
+  if(Object.keys(cart).length === 0){
+    alert("আগে কার্টে খাবার যোগ করুন।");
+    return;
+  }
+
+  const name = document.getElementById("cname").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const address = document.getElementById("address").value.trim();
+  const note = document.getElementById("note").value.trim();
+
+  if(!name || !phone || !address){
+    alert("আপনার নাম, ফোন ও ঠিকানা পূরণ করুন।");
+    return;
+  }
+
+  const entries = Object.entries(cart);
+  const items = entries.map(([id,qty]) => {
+    const f = menu.find(x => x.id === Number(id));
+    return `${f.name} × ${qty} = ${money(f.price * qty)}`;
+  }).join("\n");
+
+  const total = entries.reduce((sum,[id,qty]) => {
+    return sum + menu.find(f => f.id === Number(id)).price * qty;
+  },0);
+
+  const message =
+    "নতুন অর্ডার - Sonargaon Food\n\n" +
+    "নাম: " + name + "\n" +
+    "ফোন: " + phone + "\n" +
+    "ঠিকানা: " + address + "\n\n" +
+    "অর্ডার:\n" + items + "\n\n" +
+    "মোট: " + money(total) + "\n" +
+    "নোট: " + (note || "নেই");
+
+  const url = "https://wa.me/" + businessPhone +
+              "?text=" + encodeURIComponent(message);
+
+  const win = window.open(url,"_blank");
+  if(!win){
+    document.getElementById("status").innerHTML =
+      'WhatsApp খুলতে <a href="' + url +
+      '" target="_blank" rel="noopener">এখানে ক্লিক করুন</a>।';
+  }
+}
+
+showFoods();
+showCart();
+</script>
+</body>
+</html>

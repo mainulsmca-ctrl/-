@@ -49,9 +49,9 @@ button{border:0;border-radius:9px;padding:10px 12px;cursor:pointer;font-weight:b
   <input class="search" id="search" placeholder="নির্বাচিত রেস্টুরেন্টের খাবার খুঁজুন..." oninput="showFoods()">
 </header>
 <main>
-  <div class="demo-banner"><strong>🧪 ডেমো ওয়েবসাইট</strong><div>এখানে দেখানো রেস্টুরেন্ট, ছবি ও খাবারের দাম শুধু পরীক্ষার জন্য। এখন বাস্তব অর্ডার নেওয়া হচ্ছে না।</div></div>
+  <div class="demo-banner"><strong>🧪 ডেমো ওয়েবসাইট</strong><div>এখানে দেখানো রেস্টুরেন্ট ও মেনু Admin Panel থেকে আসে, তবে এটি শুধু পরীক্ষার জন্য। এখন বাস্তব অর্ডার নেওয়া হচ্ছে না।</div></div>
   <h2>🏪 রেস্টুরেন্ট বেছে নিন</h2>
-  <div class="restaurant-grid" id="restaurants"></div>
+  <p id="restaurantLoad" role="status">রেস্টুরেন্ট লোড হচ্ছে…</p><div class="restaurant-grid" id="restaurants"></div>
   <h2 id="menuTitle">🍽️ খাবারের মেনু</h2>
   <div class="grid" id="foods"></div>
   <section class="cart">
@@ -84,7 +84,7 @@ button{border:0;border-radius:9px;padding:10px 12px;cursor:pointer;font-weight:b
 </main>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBhQYot36uIzcn7qfWfeqeEdrU0_pva-N4",
@@ -99,57 +99,90 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const businessPhone = "8801816871366";
-const restaurants = [
-  {id:"r1",name:"ডেমো বিরিয়ানি ঘর",emoji:"🍛",type:"বিরিয়ানি ও ভাত",menu:[
-    {id:101,name:"চিকেন বিরিয়ানি",price:180,emoji:"🍛"},
-    {id:102,name:"কাচ্চি বিরিয়ানি",price:250,emoji:"🍲"},
-    {id:103,name:"মাটন বিরিয়ানি",price:320,emoji:"🥘"}]},
-  {id:"r2",name:"ডেমো বার্গার কর্নার",emoji:"🍔",type:"বার্গার ও ফাস্টফুড",menu:[
-    {id:201,name:"চিকেন বার্গার",price:150,emoji:"🍔"},
-    {id:202,name:"চিকেন ফ্রাই",price:190,emoji:"🍗"}]},
-  {id:"r3",name:"ডেমো ফুড কিচেন",emoji:"🍱",type:"ভাত, চাউমিন ও রাইস",menu:[
-    {id:301,name:"ভাত ও চিকেন",price:160,emoji:"🍚"},
-    {id:302,name:"চিকেন চাউমিন",price:180,emoji:"🍜"},
-    {id:303,name:"ফ্রাইড রাইস",price:220,emoji:"🍱"}]}
-];
-let selectedRestaurant = restaurants[0];
-let menu = selectedRestaurant.menu;
+let restaurants = [];
+let selectedRestaurant = null;
+let menu = [];
+let cart = {};
+const el=id=>document.getElementById(id);
+async function loadRestaurants(){
+ el("restaurantLoad").textContent="Firebase থেকে রেস্টুরেন্ট লোড হচ্ছে…";
+ try {
+  const snap=await getDocs(collection(db,"restaurants"));
+  const loaded=await Promise.all(snap.docs.map(async d=>{
+   const data=d.data();
+   const foodSnap=await getDocs(collection(db,"restaurants",d.id,"menu"));
+   return {id:d.id,name:data.name||"রেস্টুরেন্ট",type:data.type||"",image:data.image||"",emoji:"🍽️",menu:foodSnap.docs.map(m=>({id:m.id,name:m.data().name||"খাবার",price:Number(m.data().price)||0,emoji:"🍲"}))};
+  }));
+  restaurants=loaded;
+  selectedRestaurant=restaurants[0]||null;
+  menu=selectedRestaurant?.menu||[];
+  cart={};
+  el("restaurantLoad").textContent=restaurants.length?restaurants.length+"টি রেস্টুরেন্ট Firebase থেকে পাওয়া গেছে।":"এখনো কোনো রেস্টুরেন্ট যোগ করা হয়নি।";
+  showRestaurants();showFoods();showCart();
+ }catch(error){
+  el("restaurantLoad").textContent="রেস্টুরেন্ট লোড হয়নি: "+(error.code||error.message)+". Firebase Rules-এ public read অনুমতি লাগতে পারে।";
+  restaurants=[];selectedRestaurant=null;menu=[];cart={};showRestaurants();showFoods();showCart();
+ }
+}
 function showRestaurants(){
- document.getElementById("restaurants").innerHTML=restaurants.map(r=>`
- <button type="button" class="restaurant-card ${r.id===selectedRestaurant.id?"active":""}" onclick="chooseRestaurant('${r.id}')">
- <div class="restaurant-image" role="img" aria-label="ডেমো রেস্টুরেন্টের প্রতীক">${r.emoji}</div>
- <strong>${r.name}</strong><small>${r.type} · ডেমো</small></button>`).join("");
+ const box=el("restaurants");box.replaceChildren();
+ for(const r of restaurants){
+  const button=document.createElement("button");button.type="button";
+  button.className="restaurant-card "+(selectedRestaurant?.id===r.id?"active":"");
+  const picture=document.createElement("div");picture.className="restaurant-image";
+  if(r.image && /^https:\/\//i.test(r.image)){
+   const img=document.createElement("img");img.src=r.image;img.alt=r.name;img.loading="lazy";img.style.cssText="width:100%;height:110px;object-fit:cover;border-radius:8px";picture.append(img);
+  }else{picture.textContent="🍽️";}
+  const name=document.createElement("strong");name.textContent=r.name;
+  const type=document.createElement("small");type.textContent=r.type+" · ডেমো";
+  button.append(picture,name,type);button.onclick=()=>chooseRestaurant(r.id);box.append(button);
+ }
 }
 function chooseRestaurant(id){
  const restaurant=restaurants.find(r=>r.id===id);
- if(!restaurant || restaurant.id===selectedRestaurant.id)return;
- if(Object.keys(cart).length && !confirm("অন্য রেস্টুরেন্ট বেছে নিলে বর্তমান কার্ট খালি হবে। এগোবেন?"))return;
+ if(!restaurant||restaurant.id===selectedRestaurant?.id)return;
+ if(Object.keys(cart).length&&!confirm("অন্য রেস্টুরেন্ট বেছে নিলে কার্ট খালি হবে। এগোবেন?"))return;
  selectedRestaurant=restaurant;menu=restaurant.menu;cart={};
- document.getElementById("search").value="";
- showRestaurants();showFoods();showCart();
+ el("search").value="";showRestaurants();showFoods();showCart();
 }
 window.chooseRestaurant=chooseRestaurant;
-let cart = {};
 const deliveryRates = {"0-2":30,"2-4":40,"4-6":50,"6-8":60};
 const money = n => "৳" + n.toLocaleString("en-US");
 
 function showFoods(){
-  const q = document.getElementById("search").value.trim().toLowerCase();
-  document.getElementById("menuTitle").textContent="🍽️ "+selectedRestaurant.name+" — মেনু";
-  const filtered = menu.filter(f => f.name.toLowerCase().includes(q));
-  document.getElementById("foods").innerHTML = filtered.map(f => `
-    <article class="card"><div class="foodpic">${f.emoji}</div><h3>${f.name}</h3>
-    <div class="price">${money(f.price)}</div><button class="add" onclick="addFood(${f.id})">+ কার্টে যোগ করুন</button></article>
-  `).join("");
+ const box=el("foods");box.replaceChildren();
+ el("menuTitle").textContent=selectedRestaurant?"🍽️ "+selectedRestaurant.name+" — মেনু":"🍽️ খাবারের মেনু";
+ const q=el("search").value.trim().toLowerCase();
+ for(const f of menu.filter(f=>f.name.toLowerCase().includes(q))){
+  const article=document.createElement("article");article.className="card";
+  const emoji=document.createElement("div");emoji.className="foodpic";emoji.textContent=f.emoji;
+  const title=document.createElement("h3");title.textContent=f.name;
+  const price=document.createElement("div");price.className="price";price.textContent=money(f.price);
+  const add=document.createElement("button");add.className="add";add.textContent="+ কার্টে যোগ করুন";add.onclick=()=>addFood(f.id);
+  article.append(emoji,title,price,add);box.append(article);
+ }
+ if(!box.children.length)box.textContent="এই রেস্টুরেন্টে এখনো খাবার নেই।";
 }
 function addFood(id){cart[id]=(cart[id]||0)+1;showCart();}
 function changeQty(id,change){cart[id]=(cart[id]||0)+change;if(cart[id]<=0)delete cart[id];showCart();}
 function showCart(){
-  document.getElementById("cartRestaurant").textContent="রেস্টুরেন্ট: "+selectedRestaurant.name+" (ডেমো)";
+  document.getElementById("cartRestaurant").textContent="রেস্টুরেন্ট: "+(selectedRestaurant?.name||"কোনো রেস্টুরেন্ট নেই")+" (ডেমো)";
   const entries=Object.entries(cart);const area=document.getElementById("cartItems");
   if(!entries.length) area.textContent="এখনো কোনো খাবার যোগ করেননি।";
-  else area.innerHTML=entries.map(([id,qty])=>{const f=menu.find(x=>x.id===Number(id));return `<div class="item"><span>${f.name}<br>${money(f.price)} × ${qty}</span><span><button onclick="changeQty(${id},-1)" aria-label="একটি কমান">−</button> ${qty} <button onclick="changeQty(${id},1)" aria-label="একটি বাড়ান">+</button></span></div>`;}).join("");
-  const subtotal=entries.reduce((sum,[id,qty])=>sum+menu.find(f=>f.id===Number(id)).price*qty,0);
+  else {
+    area.replaceChildren();
+    for(const [id,qty] of entries){
+      const f=menu.find(x=>x.id===id);if(!f)continue;
+      const line=document.createElement("div");line.className="item";
+      const info=document.createElement("span");info.textContent=f.name+" — "+money(f.price)+" × "+qty;
+      const controls=document.createElement("span");
+      const minus=document.createElement("button");minus.textContent="−";minus.onclick=()=>changeQty(id,-1);
+      const plus=document.createElement("button");plus.textContent="+";plus.onclick=()=>changeQty(id,1);
+      controls.append(minus,document.createTextNode(" "+qty+" "),plus);
+      line.append(info,controls);area.append(line);
+    }
+  }
+  const subtotal=entries.reduce((sum,[id,qty])=>sum+menu.find(f=>f.id===id).price*qty,0);
   const range=document.getElementById("distanceRange").value;
   const deliveryCharge=deliveryRates[range];
   document.getElementById("subtotal").textContent=money(subtotal);
@@ -166,12 +199,12 @@ function sendOrder(){
   const range=document.getElementById("distanceRange").value;
   if(!range){alert("ডেলিভারির দূরত্ব বেছে নিন।");return;}
   if(range==="over8"){alert("৮ কিমির বেশি হলে চার্জ আগে নিশ্চিত করতে হবে। এটি শুধু ডেমো।");return;}
-  const subtotal=Object.entries(cart).reduce((sum,[id,qty])=>sum+menu.find(f=>f.id===Number(id)).price*qty,0);
+  const subtotal=Object.entries(cart).reduce((sum,[id,qty])=>sum+menu.find(f=>f.id===id).price*qty,0);
   const total=subtotal+deliveryRates[range];
   status.textContent="✅ ডেমো পরীক্ষা সফল! "+selectedRestaurant.name+" থেকে খাবার "+money(subtotal)+", ডেলিভারি "+money(deliveryRates[range])+", সর্বমোট "+money(total)+"। এটি বাস্তব অর্ডার নয়; Firebase বা WhatsApp-এ কিছু পাঠানো হয়নি।";
 }
 window.sendOrder=sendOrder;
-showRestaurants();showFoods();showCart();
+loadRestaurants();
 </script>
 </body>
 </html>

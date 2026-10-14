@@ -50,14 +50,15 @@ button{border:0;border-radius:9px;padding:10px 12px;cursor:pointer;font-weight:b
     <label>মোগরাপাড়া চৌরাস্তা থেকে আনুমানিক রাস্তার দূরত্ব
       <select class="field" id="distanceRange" onchange="showCart()">
         <option value="">দূরত্ব বেছে নিন</option>
-        <option value="0-2">০–২ কিমি — ৳৪০</option>
-        <option value="2-4">২–৪ কিমি — ৳৪৫</option>
+        <option value="0-2">০–২ কিমি — ৳৩০</option>
+        <option value="2-4">২–৪ কিমি — ৳৪০</option>
         <option value="4-6">৪–৬ কিমি — ৳৫০</option>
         <option value="6-8">৬–৮ কিমি — ৳৬০</option>
         <option value="over8">৮ কিমির বেশি — আগে নিশ্চিত করুন</option>
       </select>
     </label>
     <div class="billrow"><span>ডেলিভারি চার্জ</span><strong id="deliveryCharge">দূরত্ব বাছুন</strong></div>
+    <p id="deliveryNotice" class="small" role="status" style="display:none;color:#a34b00;background:#fff3df;padding:10px;border-radius:8px">৮ কিমির বেশি হলে ডেলিভারি চার্জ আগে ফোনে নিশ্চিত করতে হবে। চার্জ নিশ্চিত না হওয়া পর্যন্ত মোট টাকা চূড়ান্ত নয়। ফোন: 01816871366</p>
     <div class="billgrand billrow"><span>সর্বমোট</span><span id="total">৳0</span></div>
     <h2>📦 ডেলিভারির তথ্য</h2>
     <label>আপনার নাম<input class="field" id="cname" placeholder="আপনার নাম" autocomplete="name"></label>
@@ -97,7 +98,7 @@ const menu = [
   {id:8,name:"ফ্রাইড রাইস",price:220,emoji:"🍱"}
 ];
 let cart = {};
-const deliveryRates = {"0-2":40,"2-4":45,"4-6":50,"6-8":60};
+const deliveryRates = {"0-2":30,"2-4":40,"4-6":50,"6-8":60};
 const money = n => "৳" + n.toLocaleString("en-US");
 
 function showFoods(){
@@ -119,7 +120,9 @@ function showCart(){
   const deliveryCharge=deliveryRates[range];
   document.getElementById("subtotal").textContent=money(subtotal);
   document.getElementById("deliveryCharge").textContent=Number.isFinite(deliveryCharge)?money(deliveryCharge):(range==="over8"?"আগে নিশ্চিত করুন":"দূরত্ব বাছুন");
-  document.getElementById("total").textContent=Number.isFinite(deliveryCharge)?money(subtotal+deliveryCharge):money(subtotal);
+  const notice=document.getElementById("deliveryNotice");
+  notice.style.display=range==="over8"?"block":"none";
+  document.getElementById("total").textContent=range==="over8"?"চার্জ নিশ্চিত করুন":(Number.isFinite(deliveryCharge)?money(subtotal+deliveryCharge):money(subtotal));
 }
 window.showFoods=showFoods;window.addFood=addFood;window.changeQty=changeQty;
 

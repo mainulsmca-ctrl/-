@@ -12,6 +12,15 @@ header h1{margin:0;font-size:25px}
 header p{margin:8px 0 0}
 main{max-width:850px;margin:auto;padding:16px 12px 35px}
 h2{font-size:20px}
+.demo-banner{background:#fff1cd;border:1px solid #efc96c;border-radius:12px;padding:12px;margin:14px 0;color:#684a0c}
+.restaurant-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px}
+.restaurant-card{background:white;border:2px solid transparent;border-radius:14px;padding:14px;text-align:left;box-shadow:0 2px 7px #0000000d;width:100%}
+.restaurant-card.active{border-color:#16794b;background:#ecf9f0}
+.restaurant-image{font-size:42px;background:#f1f6ed;text-align:center;padding:18px;border-radius:10px}
+.restaurant-card strong{display:block;margin:10px 0 4px}
+.restaurant-card small{color:#66736b}
+.demo-button{background:#805b16;color:white;width:100%;padding:14px}
+
 .search,input{font:inherit}
 .search{width:100%;padding:12px;border:0;border-radius:10px;margin-top:16px}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
@@ -37,13 +46,16 @@ button{border:0;border-radius:9px;padding:10px 12px;cursor:pointer;font-weight:b
 <header>
   <h1>🍲 Sonargaon Food</h1>
   <p>📍 মোগড়াপাড়া চৌরাস্তা, সোনারগাঁও</p>
-  <input class="search" id="search" placeholder="খাবার খুঁজুন..." oninput="showFoods()">
+  <input class="search" id="search" placeholder="নির্বাচিত রেস্টুরেন্টের খাবার খুঁজুন..." oninput="showFoods()">
 </header>
 <main>
-  <h2>🍽️ খাবারের মেনু</h2>
+  <div class="demo-banner"><strong>🧪 ডেমো ওয়েবসাইট</strong><div>এখানে দেখানো রেস্টুরেন্ট, ছবি ও খাবারের দাম শুধু পরীক্ষার জন্য। এখন বাস্তব অর্ডার নেওয়া হচ্ছে না।</div></div>
+  <h2>🏪 রেস্টুরেন্ট বেছে নিন</h2>
+  <div class="restaurant-grid" id="restaurants"></div>
+  <h2 id="menuTitle">🍽️ খাবারের মেনু</h2>
   <div class="grid" id="foods"></div>
   <section class="cart">
-    <h2>🛒 আপনার কার্ট</h2>
+    <h2>🛒 আপনার কার্ট</h2><p id="cartRestaurant" class="small"></p>
     <div id="cartItems">এখনো কোনো খাবার যোগ করেননি।</div>
     <div class="billrow"><span>খাবারের মোট দাম</span><strong id="subtotal">৳0</strong></div>
     <h2>🚚 ডেলিভারি চার্জ</h2>
@@ -65,8 +77,8 @@ button{border:0;border-radius:9px;padding:10px 12px;cursor:pointer;font-weight:b
     <label>মোবাইল নম্বর<input class="field" id="phone" type="tel" placeholder="01XXXXXXXXX" autocomplete="tel"></label>
     <label>সম্পূর্ণ ঠিকানা<input class="field" id="address" placeholder="বাসা, রাস্তা ও এলাকা" autocomplete="street-address"></label>
     <label>অতিরিক্ত নোট (ঐচ্ছিক)<input class="field" id="note" placeholder="যেমন: কম ঝাল"></label>
-    <button class="order" id="orderButton" onclick="sendOrder()">WhatsApp-এ অর্ডার পাঠান</button>
-    <p class="small">ডেলিভারি চার্জ মোগরাপাড়া চৌরাস্তা থেকে আনুমানিক রাস্তার দূরত্ব অনুযায়ী। সঠিক দূরত্ব না জানলে Google Maps-এ রুট দেখে বেছে নিন। ৮ কিমির বেশি হলে আগে ফোনে চার্জ নিশ্চিত করুন। খাবারের দামগুলো এখনো নমুনা। অর্ডার ডেটাবেসে সংরক্ষণের চেষ্টা হবে; এরপর WhatsApp খুলবে, সেখানে Send চাপতে হবে।</p>
+    <button class="demo-button" id="orderButton" onclick="sendOrder()">🧪 ডেমো অর্ডার পরীক্ষা করুন</button>
+    <p class="small">ডেলিভারি চার্জ মোগরাপাড়া চৌরাস্তা থেকে আনুমানিক রাস্তার দূরত্ব অনুযায়ী। সঠিক দূরত্ব না জানলে Google Maps-এ রুট দেখে বেছে নিন। ৮ কিমির বেশি হলে আগে ফোনে চার্জ নিশ্চিত করুন। এটি ডেমো সংস্করণ: অর্ডার Firebase-এ সংরক্ষণ হবে না এবং WhatsApp-এ পাঠানো হবে না। বাস্তব রেস্টুরেন্ট যুক্ত করার পরে অর্ডার চালু করা যাবে।</p>
     <p id="status" role="status" aria-live="polite"></p>
   </section>
 </main>
@@ -87,22 +99,43 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const businessPhone = "8801816871366";
-const menu = [
-  {id:1,name:"চিকেন বিরিয়ানি",price:180,emoji:"🍛"},
-  {id:2,name:"কাচ্চি বিরিয়ানি",price:250,emoji:"🍲"},
-  {id:3,name:"মাটন বিরিয়ানি",price:320,emoji:"🥘"},
-  {id:4,name:"ভাত ও চিকেন",price:160,emoji:"🍚"},
-  {id:5,name:"চিকেন বার্গার",price:150,emoji:"🍔"},
-  {id:6,name:"চিকেন ফ্রাই",price:190,emoji:"🍗"},
-  {id:7,name:"চিকেন চাউমিন",price:180,emoji:"🍜"},
-  {id:8,name:"ফ্রাইড রাইস",price:220,emoji:"🍱"}
+const restaurants = [
+  {id:"r1",name:"ডেমো বিরিয়ানি ঘর",emoji:"🍛",type:"বিরিয়ানি ও ভাত",menu:[
+    {id:101,name:"চিকেন বিরিয়ানি",price:180,emoji:"🍛"},
+    {id:102,name:"কাচ্চি বিরিয়ানি",price:250,emoji:"🍲"},
+    {id:103,name:"মাটন বিরিয়ানি",price:320,emoji:"🥘"}]},
+  {id:"r2",name:"ডেমো বার্গার কর্নার",emoji:"🍔",type:"বার্গার ও ফাস্টফুড",menu:[
+    {id:201,name:"চিকেন বার্গার",price:150,emoji:"🍔"},
+    {id:202,name:"চিকেন ফ্রাই",price:190,emoji:"🍗"}]},
+  {id:"r3",name:"ডেমো ফুড কিচেন",emoji:"🍱",type:"ভাত, চাউমিন ও রাইস",menu:[
+    {id:301,name:"ভাত ও চিকেন",price:160,emoji:"🍚"},
+    {id:302,name:"চিকেন চাউমিন",price:180,emoji:"🍜"},
+    {id:303,name:"ফ্রাইড রাইস",price:220,emoji:"🍱"}]}
 ];
+let selectedRestaurant = restaurants[0];
+let menu = selectedRestaurant.menu;
+function showRestaurants(){
+ document.getElementById("restaurants").innerHTML=restaurants.map(r=>`
+ <button type="button" class="restaurant-card ${r.id===selectedRestaurant.id?"active":""}" onclick="chooseRestaurant('${r.id}')">
+ <div class="restaurant-image" role="img" aria-label="ডেমো রেস্টুরেন্টের প্রতীক">${r.emoji}</div>
+ <strong>${r.name}</strong><small>${r.type} · ডেমো</small></button>`).join("");
+}
+function chooseRestaurant(id){
+ const restaurant=restaurants.find(r=>r.id===id);
+ if(!restaurant || restaurant.id===selectedRestaurant.id)return;
+ if(Object.keys(cart).length && !confirm("অন্য রেস্টুরেন্ট বেছে নিলে বর্তমান কার্ট খালি হবে। এগোবেন?"))return;
+ selectedRestaurant=restaurant;menu=restaurant.menu;cart={};
+ document.getElementById("search").value="";
+ showRestaurants();showFoods();showCart();
+}
+window.chooseRestaurant=chooseRestaurant;
 let cart = {};
 const deliveryRates = {"0-2":30,"2-4":40,"4-6":50,"6-8":60};
 const money = n => "৳" + n.toLocaleString("en-US");
 
 function showFoods(){
   const q = document.getElementById("search").value.trim().toLowerCase();
+  document.getElementById("menuTitle").textContent="🍽️ "+selectedRestaurant.name+" — মেনু";
   const filtered = menu.filter(f => f.name.toLowerCase().includes(q));
   document.getElementById("foods").innerHTML = filtered.map(f => `
     <article class="card"><div class="foodpic">${f.emoji}</div><h3>${f.name}</h3>
@@ -112,6 +145,7 @@ function showFoods(){
 function addFood(id){cart[id]=(cart[id]||0)+1;showCart();}
 function changeQty(id,change){cart[id]=(cart[id]||0)+change;if(cart[id]<=0)delete cart[id];showCart();}
 function showCart(){
+  document.getElementById("cartRestaurant").textContent="রেস্টুরেন্ট: "+selectedRestaurant.name+" (ডেমো)";
   const entries=Object.entries(cart);const area=document.getElementById("cartItems");
   if(!entries.length) area.textContent="এখনো কোনো খাবার যোগ করেননি।";
   else area.innerHTML=entries.map(([id,qty])=>{const f=menu.find(x=>x.id===Number(id));return `<div class="item"><span>${f.name}<br>${money(f.price)} × ${qty}</span><span><button onclick="changeQty(${id},-1)" aria-label="একটি কমান">−</button> ${qty} <button onclick="changeQty(${id},1)" aria-label="একটি বাড়ান">+</button></span></div>`;}).join("");
@@ -126,63 +160,18 @@ function showCart(){
 }
 window.showFoods=showFoods;window.addFood=addFood;window.changeQty=changeQty;
 
-async function sendOrder(){
+function sendOrder(){
   const status=document.getElementById("status");
-  const button=document.getElementById("orderButton");
   if(!Object.keys(cart).length){alert("আগে কার্টে খাবার যোগ করুন।");return;}
-  const name=document.getElementById("cname").value.trim();
-  const phone=document.getElementById("phone").value.trim();
-  const address=document.getElementById("address").value.trim();
-  const note=document.getElementById("note").value.trim();
-  const distanceRange=document.getElementById("distanceRange").value;
-  const deliveryCharge=deliveryRates[distanceRange];
-  if(!distanceRange){alert("ডেলিভারির দূরত্ব বেছে নিন।");return;}
-  if(distanceRange==="over8"){alert("৮ কিমির বেশি দূরত্বের জন্য আগে 01816871366 নম্বরে চার্জ নিশ্চিত করুন।");return;}
-  if(!Number.isFinite(deliveryCharge)){alert("ডেলিভারি চার্জ বেছে নিন।");return;}
-  if(!name||!phone||!address){alert("আপনার নাম, ফোন ও ঠিকানা পূরণ করুন।");return;}
-  if(!/^[0-9+()\-\s]{8,20}$/.test(phone)){alert("সঠিক মোবাইল নম্বর লিখুন।");return;}
-  const entries=Object.entries(cart);
-  const orderItems=entries.map(([id,qty])=>{const f=menu.find(x=>x.id===Number(id));return {id:f.id,name:f.name,price:f.price,quantity:qty,lineTotal:f.price*qty};});
-  const subtotal=orderItems.reduce((sum,item)=>sum+item.lineTotal,0);
-  const total=subtotal+deliveryCharge;
-  const distanceLabels={"0-2":"০–২ কিমি","2-4":"২–৪ কিমি","4-6":"৪–৬ কিমি","6-8":"৬–৮ কিমি"};
-  const message="নতুন অর্ডার - Sonargaon Food\n\n"+
-    "নাম: "+name+"\nফোন: "+phone+"\nঠিকানা: "+address+"\nদূরত্ব: "+distanceLabels[distanceRange]+"\n\n"+
-    "অর্ডার:\n"+orderItems.map(item=>`${item.name} × ${item.quantity} = ${money(item.lineTotal)}`).join("\n")+
-    "\n\nখাবারের দাম: "+money(subtotal)+"\nডেলিভারি চার্জ: "+money(deliveryCharge)+"\nসর্বমোট: "+money(total)+"\nনোট: "+(note||"নেই");
-  const url="https://wa.me/"+businessPhone+"?text="+encodeURIComponent(message);
-  // Open synchronously so the browser is less likely to block WhatsApp after the database request.
-  const waWindow=window.open("about:blank","_blank");
-  button.disabled=true;button.textContent="অর্ডার সংরক্ষণ হচ্ছে...";
-  status.textContent="অর্ডার ডেটাবেসে সংরক্ষণের চেষ্টা চলছে...";
-  try{
-    const doc=await addDoc(collection(db,"orders"),{
-      customerName:name,
-      phone:phone,
-      address:address,
-      note:note,
-      items:orderItems,
-      subtotal:subtotal,
-      deliveryCharge:deliveryCharge,
-      distanceRange:distanceLabels[distanceRange],
-      total:total,
-      status:"pending",
-      createdAt:serverTimestamp()
-    });
-    status.textContent="অর্ডার ডেটাবেসে সংরক্ষিত হয়েছে (অর্ডার আইডি: "+doc.id+")। এখন WhatsApp-এ Send চাপুন।";
-    if(waWindow) waWindow.location.href=url;
-    else status.innerHTML += ' <a href="'+url+'" target="_blank" rel="noopener">WhatsApp খুলুন</a>।';
-  }catch(error){
-    if(waWindow) waWindow.close();
-    console.error("Order save failed:",error);
-    status.textContent="অর্ডার ডেটাবেসে সংরক্ষণ হয়নি। Rules/connection পরীক্ষা করুন। Error: "+(error.code||error.message||"unknown");
-    alert("Firebase-এ অর্ডার সেভ হয়নি। নিচে দেখানো error আমাকে পাঠান।");
-  }finally{
-    button.disabled=false;button.textContent="WhatsApp-এ অর্ডার পাঠান";
-  }
+  const range=document.getElementById("distanceRange").value;
+  if(!range){alert("ডেলিভারির দূরত্ব বেছে নিন।");return;}
+  if(range==="over8"){alert("৮ কিমির বেশি হলে চার্জ আগে নিশ্চিত করতে হবে। এটি শুধু ডেমো।");return;}
+  const subtotal=Object.entries(cart).reduce((sum,[id,qty])=>sum+menu.find(f=>f.id===Number(id)).price*qty,0);
+  const total=subtotal+deliveryRates[range];
+  status.textContent="✅ ডেমো পরীক্ষা সফল! "+selectedRestaurant.name+" থেকে খাবার "+money(subtotal)+", ডেলিভারি "+money(deliveryRates[range])+", সর্বমোট "+money(total)+"। এটি বাস্তব অর্ডার নয়; Firebase বা WhatsApp-এ কিছু পাঠানো হয়নি।";
 }
 window.sendOrder=sendOrder;
-showFoods();showCart();
+showRestaurants();showFoods();showCart();
 </script>
 </body>
 </html>

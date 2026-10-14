@@ -25,6 +25,8 @@ button{border:0;border-radius:9px;padding:10px 12px;cursor:pointer;font-weight:b
 .field{display:block;width:100%;padding:12px;border:1px solid #ddd;border-radius:9px;margin:8px 0 12px}
 .item{display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid #eee}
 .total{font-size:19px;font-weight:bold;margin:16px 0}
+.billrow{display:flex;justify-content:space-between;gap:10px;margin:9px 0;color:#334238}
+.billgrand{font-size:20px;font-weight:bold;color:#16794b;border-top:1px solid #ddd;padding-top:12px;margin-top:12px}
 .order{width:100%;padding:14px;font-size:16px}
 .small{font-size:12px;color:#66736b;line-height:1.6}
 #status{line-height:1.6;overflow-wrap:anywhere}
@@ -43,14 +45,27 @@ button{border:0;border-radius:9px;padding:10px 12px;cursor:pointer;font-weight:b
   <section class="cart">
     <h2>🛒 আপনার কার্ট</h2>
     <div id="cartItems">এখনো কোনো খাবার যোগ করেননি।</div>
-    <div class="total">মোট: <span id="total">৳0</span></div>
+    <div class="billrow"><span>খাবারের মোট দাম</span><strong id="subtotal">৳0</strong></div>
+    <h2>🚚 ডেলিভারি চার্জ</h2>
+    <label>মোগরাপাড়া চৌরাস্তা থেকে আনুমানিক রাস্তার দূরত্ব
+      <select class="field" id="distanceRange" onchange="showCart()">
+        <option value="">দূরত্ব বেছে নিন</option>
+        <option value="0-2">০–২ কিমি — ৳৪০</option>
+        <option value="2-4">২–৪ কিমি — ৳৪৫</option>
+        <option value="4-6">৪–৬ কিমি — ৳৫০</option>
+        <option value="6-8">৬–৮ কিমি — ৳৬০</option>
+        <option value="over8">৮ কিমির বেশি — আগে নিশ্চিত করুন</option>
+      </select>
+    </label>
+    <div class="billrow"><span>ডেলিভারি চার্জ</span><strong id="deliveryCharge">দূরত্ব বাছুন</strong></div>
+    <div class="billgrand billrow"><span>সর্বমোট</span><span id="total">৳0</span></div>
     <h2>📦 ডেলিভারির তথ্য</h2>
     <label>আপনার নাম<input class="field" id="cname" placeholder="আপনার নাম" autocomplete="name"></label>
     <label>মোবাইল নম্বর<input class="field" id="phone" type="tel" placeholder="01XXXXXXXXX" autocomplete="tel"></label>
     <label>সম্পূর্ণ ঠিকানা<input class="field" id="address" placeholder="বাসা, রাস্তা ও এলাকা" autocomplete="street-address"></label>
     <label>অতিরিক্ত নোট (ঐচ্ছিক)<input class="field" id="note" placeholder="যেমন: কম ঝাল"></label>
     <button class="order" id="orderButton" onclick="sendOrder()">WhatsApp-এ অর্ডার পাঠান</button>
-    <p class="small">অর্ডার আগে Sonargaon Food-এর ডেটাবেসে সংরক্ষণের চেষ্টা হবে। এরপর WhatsApp খুলবে; অর্ডার পাঠাতে সেখানে Send চাপতে হবে। দামগুলো এখনো নমুনা।</p>
+    <p class="small">ডেলিভারি চার্জ মোগরাপাড়া চৌরাস্তা থেকে আনুমানিক রাস্তার দূরত্ব অনুযায়ী। সঠিক দূরত্ব না জানলে Google Maps-এ রুট দেখে বেছে নিন। ৮ কিমির বেশি হলে আগে ফোনে চার্জ নিশ্চিত করুন। খাবারের দামগুলো এখনো নমুনা। অর্ডার ডেটাবেসে সংরক্ষণের চেষ্টা হবে; এরপর WhatsApp খুলবে, সেখানে Send চাপতে হবে।</p>
     <p id="status" role="status" aria-live="polite"></p>
   </section>
 </main>
@@ -82,6 +97,7 @@ const menu = [
   {id:8,name:"ফ্রাইড রাইস",price:220,emoji:"🍱"}
 ];
 let cart = {};
+const deliveryRates = {"0-2":40,"2-4":45,"4-6":50,"6-8":60};
 const money = n => "৳" + n.toLocaleString("en-US");
 
 function showFoods(){
@@ -98,8 +114,12 @@ function showCart(){
   const entries=Object.entries(cart);const area=document.getElementById("cartItems");
   if(!entries.length) area.textContent="এখনো কোনো খাবার যোগ করেননি।";
   else area.innerHTML=entries.map(([id,qty])=>{const f=menu.find(x=>x.id===Number(id));return `<div class="item"><span>${f.name}<br>${money(f.price)} × ${qty}</span><span><button onclick="changeQty(${id},-1)" aria-label="একটি কমান">−</button> ${qty} <button onclick="changeQty(${id},1)" aria-label="একটি বাড়ান">+</button></span></div>`;}).join("");
-  const total=entries.reduce((sum,[id,qty])=>sum+menu.find(f=>f.id===Number(id)).price*qty,0);
-  document.getElementById("total").textContent=money(total);
+  const subtotal=entries.reduce((sum,[id,qty])=>sum+menu.find(f=>f.id===Number(id)).price*qty,0);
+  const range=document.getElementById("distanceRange").value;
+  const deliveryCharge=deliveryRates[range];
+  document.getElementById("subtotal").textContent=money(subtotal);
+  document.getElementById("deliveryCharge").textContent=Number.isFinite(deliveryCharge)?money(deliveryCharge):(range==="over8"?"আগে নিশ্চিত করুন":"দূরত্ব বাছুন");
+  document.getElementById("total").textContent=Number.isFinite(deliveryCharge)?money(subtotal+deliveryCharge):money(subtotal);
 }
 window.showFoods=showFoods;window.addFood=addFood;window.changeQty=changeQty;
 
@@ -111,15 +131,22 @@ async function sendOrder(){
   const phone=document.getElementById("phone").value.trim();
   const address=document.getElementById("address").value.trim();
   const note=document.getElementById("note").value.trim();
+  const distanceRange=document.getElementById("distanceRange").value;
+  const deliveryCharge=deliveryRates[distanceRange];
+  if(!distanceRange){alert("ডেলিভারির দূরত্ব বেছে নিন।");return;}
+  if(distanceRange==="over8"){alert("৮ কিমির বেশি দূরত্বের জন্য আগে 01816871366 নম্বরে চার্জ নিশ্চিত করুন।");return;}
+  if(!Number.isFinite(deliveryCharge)){alert("ডেলিভারি চার্জ বেছে নিন।");return;}
   if(!name||!phone||!address){alert("আপনার নাম, ফোন ও ঠিকানা পূরণ করুন।");return;}
   if(!/^[0-9+()\-\s]{8,20}$/.test(phone)){alert("সঠিক মোবাইল নম্বর লিখুন।");return;}
   const entries=Object.entries(cart);
   const orderItems=entries.map(([id,qty])=>{const f=menu.find(x=>x.id===Number(id));return {id:f.id,name:f.name,price:f.price,quantity:qty,lineTotal:f.price*qty};});
-  const total=orderItems.reduce((sum,item)=>sum+item.lineTotal,0);
+  const subtotal=orderItems.reduce((sum,item)=>sum+item.lineTotal,0);
+  const total=subtotal+deliveryCharge;
+  const distanceLabels={"0-2":"০–২ কিমি","2-4":"২–৪ কিমি","4-6":"৪–৬ কিমি","6-8":"৬–৮ কিমি"};
   const message="নতুন অর্ডার - Sonargaon Food\n\n"+
-    "নাম: "+name+"\nফোন: "+phone+"\nঠিকানা: "+address+"\n\n"+
+    "নাম: "+name+"\nফোন: "+phone+"\nঠিকানা: "+address+"\nদূরত্ব: "+distanceLabels[distanceRange]+"\n\n"+
     "অর্ডার:\n"+orderItems.map(item=>`${item.name} × ${item.quantity} = ${money(item.lineTotal)}`).join("\n")+
-    "\n\nমোট: "+money(total)+"\nনোট: "+(note||"নেই");
+    "\n\nখাবারের দাম: "+money(subtotal)+"\nডেলিভারি চার্জ: "+money(deliveryCharge)+"\nসর্বমোট: "+money(total)+"\nনোট: "+(note||"নেই");
   const url="https://wa.me/"+businessPhone+"?text="+encodeURIComponent(message);
   // Open synchronously so the browser is less likely to block WhatsApp after the database request.
   const waWindow=window.open("about:blank","_blank");
@@ -132,6 +159,9 @@ async function sendOrder(){
       address:address,
       note:note,
       items:orderItems,
+      subtotal:subtotal,
+      deliveryCharge:deliveryCharge,
+      distanceRange:distanceLabels[distanceRange],
       total:total,
       status:"pending",
       createdAt:serverTimestamp()
